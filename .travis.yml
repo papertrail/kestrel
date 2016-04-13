@@ -1,3 +1,5 @@
+sudo: required
+
 language: scala
 
 jdk:
@@ -7,4 +9,4 @@ scala:
    - 2.9.2
    
 before_install:
-  - perl -npi -e 's/^( *addSbt (warn|info).*)/#$1/g' /usr/local/bin/sbt
+  - sudo perl -npi -e 's/^( *addSbt (warn|info).*)/#$1/g' /usr/local/bin/sbt
