@@ -1,5 +1,10 @@
 language: scala
+
 jdk:
   - oraclejdk7
+
 scala:
    - 2.9.2
+   
+before_install:
+  - perl -npi -e 's/^( *addSbt (warn|info).*)/#$1/g' /usr/local/bin/sbt
