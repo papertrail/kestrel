@@ -22,7 +22,7 @@ object Kestrel extends Build {
     logBuffered in Test := false,
     parallelExecution in Test := false,
 
-    resolvers += "twitter.com" at "https://maven.twttr.com/",
+    resolvers += "maven.twitter.com" at "https://maven.twttr.com/",
 
     libraryDependencies ++= Seq(
       "com.twitter" % "ostrich" % "8.2.9",
