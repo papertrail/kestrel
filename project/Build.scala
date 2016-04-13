@@ -10,7 +10,6 @@ object Kestrel extends Build {
     base = file("."),
     settings = Project.defaultSettings ++
       StandardProject.newSettings ++
-      SubversionPublisher.newSettings ++
       CompileThriftScrooge.newSettings
   ).settings(
     name := "kestrel",
@@ -48,7 +47,6 @@ object Kestrel extends Build {
 
     CompileThriftScrooge.scroogeVersion := "3.0.1",
     PackageDist.packageDistConfigFilesValidationRegex := Some(".*"),
-    SubversionPublisher.subversionRepository := Some("https://svn.twitter.biz/maven-public"),
     publishArtifact in Test := true
   )
 }
