@@ -19,8 +19,6 @@ package net.lag.kestrel
 package config
 
 import com.twitter.common.zookeeper.{ServerSet, ZooKeeperClient, ZooKeeperUtils}
-import com.twitter.common_internal.zookeeper.TwitterServerSet
-import com.twitter.common_internal.zookeeper.TwitterServerSet.Service
 import com.twitter.conversions.storage._
 import com.twitter.conversions.time._
 import com.twitter.logging.Logger
@@ -38,7 +36,6 @@ case class ZooKeeperConfig(
   roleSS: String,
   envSS: String,
   nameSS: String,
-  useTwitterServerSet: Boolean,
   sessionTimeout: Duration,
   credentials: Option[(String, String)],
   acl: ZooKeeperACL,
@@ -49,9 +46,9 @@ case class ZooKeeperConfig(
     val clientInit = clientInitializer.map { _ => "<custom>" }.getOrElse("<default>")
     val serverSetInit = serverSetInitializer.map { _ => "<custom>" }.getOrElse("<default>")
 
-    ("host=%s port=%d pathPrefix=%s roleSS=%s envSS=%s nameSS=%s useTwitterServerSet=%s sessionTimeout=%s credentials=%s acl=%s " +
+    ("host=%s port=%d pathPrefix=%s roleSS=%s envSS=%s nameSS=%s sessionTimeout=%s credentials=%s acl=%s " +
      "clientInitializer=%s serverSetInitializer=%s").format(
-      host, port, pathPrefix, roleSS, envSS, nameSS, useTwitterServerSet, sessionTimeout, creds, acl, clientInit, serverSetInit)
+      host, port, pathPrefix, roleSS, envSS, nameSS, sessionTimeout, creds, acl, clientInit, serverSetInit)
   }
 }
 
@@ -125,14 +122,6 @@ class ZooKeeperBuilder {
   var nameSS: String = "devel"
 
   /**
-   * If this is set to false, TwitterServerSet will not be used to create the serverset and the configuration
-   * options provided will be used to create the zookeeper client and serverset. If this is set to true,
-   * the default TwitterServerSet configuration will be used to create the zookeeper client and serverset.
-   *
-   */
-  var useTwitterServerSet: Boolean = true
-
-  /**
    * ZooKeeper session timeout. Defaults to 10 seconds.
    */
   var sessionTimeout = 10.seconds
@@ -171,7 +160,7 @@ class ZooKeeperBuilder {
   var serverSetInitializer: Option[(ZooKeeperConfig, ZooKeeperClient, String) => ServerSet] = None
 
   def apply() = {
-    ZooKeeperConfig(host, port, pathPrefix, roleSS, envSS, nameSS, useTwitterServerSet, sessionTimeout,
+    ZooKeeperConfig(host, port, pathPrefix, roleSS, envSS, nameSS, sessionTimeout,
                     credentials, acl, clientInitializer, serverSetInitializer)
   }
 }

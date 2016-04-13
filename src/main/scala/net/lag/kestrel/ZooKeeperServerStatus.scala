@@ -20,8 +20,6 @@ package net.lag.kestrel
 import com.twitter.common.quantity.{Amount, Time}
 import com.twitter.common.zookeeper.{ServerSet, ServerSets, ZooKeeperClient, ZooKeeperUtils}
 import com.twitter.common.zookeeper.ServerSet.EndpointStatus
-import com.twitter.common_internal.zookeeper.TwitterServerSet
-import com.twitter.common_internal.zookeeper.TwitterServerSet.Service
 import com.twitter.common.zookeeper.ServerSet.EndpointStatus
 import com.twitter.conversions.time._
 import com.twitter.logging.Logger
@@ -40,20 +38,14 @@ object ZooKeeperServerStatus {
    * and host/port. In the absence of credentials, an unauthorized connection is attempted.
    */
   def createClient(zkConfig: ZooKeeperConfig): ZooKeeperClient = {
-    if (zkConfig.useTwitterServerSet) {
-      // The createClient call uses only the service#role to set credentials. So it's okay to do this even
-      // when we might have endpoints with nameSS/write and nameSS/read
-      TwitterServerSet.createClient(new Service(zkConfig.roleSS, zkConfig.envSS, zkConfig.nameSS))
-    } else {
-      val address = new InetSocketAddress(zkConfig.host, zkConfig.port)
-      val timeout = Amount.of(zkConfig.sessionTimeout.inMilliseconds.toInt, Time.MILLISECONDS)
-      zkConfig.credentials match {
-        case Some((username, password)) =>
-          val credentials = ZooKeeperClient.digestCredentials(username, password)
-          new ZooKeeperClient(timeout, credentials, address)
-        case None =>
-          new ZooKeeperClient(timeout, address)
-      }
+    val address = new InetSocketAddress(zkConfig.host, zkConfig.port)
+    val timeout = Amount.of(zkConfig.sessionTimeout.inMilliseconds.toInt, Time.MILLISECONDS)
+    zkConfig.credentials match {
+      case Some((username, password)) =>
+        val credentials = ZooKeeperClient.digestCredentials(username, password)
+        new ZooKeeperClient(timeout, credentials, address)
+      case None =>
+        new ZooKeeperClient(timeout, address)
     }
   }
 
@@ -66,12 +58,8 @@ object ZooKeeperServerStatus {
    * credentials must have been provided during creation of the ZooKeeperClient.
    */
   def createServerSet(zkConfig: ZooKeeperConfig, zkClient: ZooKeeperClient, nodeType: String): ServerSet = {
-    if (zkConfig.useTwitterServerSet) {
-      TwitterServerSet.create(zkClient, new Service(zkConfig.roleSS, zkConfig.envSS, "%s/%s".format(zkConfig.nameSS, nodeType)))
-    } else {
-      val node = "%s/%s".format(zkConfig.pathPrefix, nodeType)
-      ServerSets.create(zkClient, JavaConversions.asJavaIterable(zkConfig.acl.asList), node)
-    }
+    val node = "%s/%s".format(zkConfig.pathPrefix, nodeType)
+    ServerSets.create(zkClient, JavaConversions.asJavaIterable(zkConfig.acl.asList), node)
   }
 
   def statusToReadStatus(status: Status): TStatus =
