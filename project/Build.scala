@@ -11,7 +11,8 @@ object Kestrel extends Build {
     base = file("."),
     settings = Project.defaultSettings ++
       StandardProject.newSettings ++
-      ScroogeSBT.newSettings
+      ScroogeSBT.newSettings ++
+      net.virtualvoid.sbt.graph.Plugin.graphSettings
   ).settings(
     name := "kestrel",
     organization := "net.lag",
@@ -27,13 +28,14 @@ object Kestrel extends Build {
       "com.twitter" %% "naggati" % "4.1.0",
       "com.twitter" % "finagle-core" % finagleVersion,
       "com.twitter" % "finagle-ostrich4" % finagleVersion,
-      "com.twitter" % "finagle-thrift" % finagleVersion, // override scrooge's version
+      "org.apache.thrift" % "libthrift" % "0.9.2",
+      "com.twitter" % "finagle-thrift" % finagleVersion // override scrooge's version
+        exclude("org.apache.thrift", "libthrift"),
       "com.twitter" %% "scrooge-runtime" % "3.1.5"
         exclude("com.twitter", "finagle-core_2.9.2")
         exclude("com.twitter", "finagle-thrift_2.9.2")
         exclude("com.twitter", "util-core_2.9.2"),
       "com.twitter.common.zookeeper" % "server-set" % "1.0.16",
-      "org.apache.thrift" % "libthrift" % "0.9.2",
       // for tests only:
       "junit" % "junit" % "4.10" % "test",
       "org.mockito" % "mockito-all" % "1.9.5" % "test",

@@ -10,3 +10,6 @@ scala:
    
 before_install:
   - sudo perl -npi -e 's/^( *addSbt (warn|info).*)/#$1/g' /usr/local/bin/sbt
+
+after_failure:
+  - sbt dependency-tree
