@@ -49,7 +49,6 @@ object Kestrel extends Build {
 
     mainClass in Compile := Some("net.lag.kestrel.Kestrel"),
 
-    // CompileThriftScrooge.scroogeVersion := "3.0.1",
     PackageDist.packageDistConfigFilesValidationRegex := Some(".*"),
     publishArtifact in Test := true
   )
