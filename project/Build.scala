@@ -29,8 +29,7 @@ object Kestrel extends Build {
       "com.twitter" % "finagle-core" % finagleVersion,
       "com.twitter" % "finagle-ostrich4" % finagleVersion,
       "org.apache.thrift" % "libthrift" % "0.9.2",
-      "com.twitter" % "finagle-thrift" % finagleVersion // override scrooge's version
-        exclude("org.apache.thrift", "libthrift"),
+      "com.twitter" % "finagle-thrift" % finagleVersion, // override scrooge's version
       "com.twitter" %% "scrooge-runtime" % "3.1.5"
         exclude("com.twitter", "finagle-core_2.9.2")
         exclude("com.twitter", "finagle-thrift_2.9.2")
