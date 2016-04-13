@@ -995,7 +995,6 @@ class PersistentQueueSpec extends SpecificationWithJUnit
           q.setup
           put(q, 128, 0)
           put(q, 128, 0)
-          q.remove()
 
           time.advance(10.milliseconds)
           q.currentAge mustEqual 10.milliseconds

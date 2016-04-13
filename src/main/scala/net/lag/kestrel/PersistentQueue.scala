@@ -55,7 +55,7 @@ class PersistentQueue(val name: String, persistencePath: PersistentStreamContain
   private var queueSize: Long = 0
 
   // timestamp of the last item read from the queue:
-  private var _currentAge: Time = Time.epoch
+  private var _currentAge: Time = null
 
   // time the queue was created
   private var _createTime = Time.now
@@ -148,7 +148,16 @@ class PersistentQueue(val name: String, persistencePath: PersistentStreamContain
   def journalSize: Long = synchronized { journal.size }
   def journalTotalSize: Long = journal.archivedSize + journalSize
   def currentAge: Duration = synchronized {
-    if (queueSize == 0) 0.milliseconds else Time.now - _currentAge
+    if (queueSize == 0) {
+      0.milliseconds
+    } else if (_currentAge != null) {
+      Time.now - _currentAge
+    } else {
+      peek() match {
+        case Some(firstItem) => Time.now - firstItem.addTime
+        case None => 0.milliseconds
+      }
+    }
   }
   def waiterCount: Long = synchronized { waiters.size }
   def isClosed: Boolean = synchronized { closed || paused }
