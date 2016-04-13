@@ -21,7 +21,7 @@ import java.io.{File, FileInputStream}
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import scala.util.Sorting
 import com.twitter.logging.{Level, TestLogging}
-import com.twitter.util.{Await,TempFolder, Time, Timer}
+import com.twitter.util.{TempFolder, Time, Timer}
 import com.twitter.conversions.time._
 import com.twitter.conversions.storage._
 import com.twitter.ostrich.stats.Stats
@@ -61,10 +61,10 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
         Stats.getCounter("queue_creates")() mustEqual 2
         Stats.getCounter("queue_deletes")() mustEqual 0
 
-        Await.result(qc.remove("work1")) must beSomeQItem("stuff")
-        Await.result(qc.remove("work1")) mustEqual None
-        Await.result(qc.remove("work2")) must beSomeQItem("other stuff")
-        Await.result(qc.remove("work2")) mustEqual None
+        qc.remove("work1")() must beSomeQItem("stuff")
+        qc.remove("work1")() mustEqual None
+        qc.remove("work2")() must beSomeQItem("other stuff")
+        qc.remove("work2")() mustEqual None
 
         qc.currentBytes mustEqual 0
         qc.currentItems mustEqual 0
@@ -117,7 +117,7 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
 
         qc = new QueueCollection(folderName, timer, scheduler, config, Nil, Nil)
         qc.queueNames mustEqual Nil
-        Await.result(qc.remove("ducklings")) must beSomeQItem("huey")
+        qc.remove("ducklings")() must beSomeQItem("huey")
         // now the queue should be suddenly instantiated:
         qc.currentBytes mustEqual 10
         qc.currentItems mustEqual 2
@@ -133,20 +133,20 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
         Stats.getCounter("get_hits")() mustEqual 0
         Stats.getCounter("get_misses")() mustEqual 0
 
-        Await.result(qc.remove("ducklings")) must beSomeQItem("ugly1")
+        qc.remove("ducklings")() must beSomeQItem("ugly1")
         Stats.getCounter("get_hits")() mustEqual 1
         Stats.getCounter("get_misses")() mustEqual 0
-        Await.result(qc.remove("zombie")) mustEqual None
+        qc.remove("zombie")() mustEqual None
         Stats.getCounter("get_hits")() mustEqual 1
         Stats.getCounter("get_misses")() mustEqual 1
 
-        Await.result(qc.remove("ducklings")) must beSomeQItem("ugly2")
+        qc.remove("ducklings")() must beSomeQItem("ugly2")
         Stats.getCounter("get_hits")() mustEqual 2
         Stats.getCounter("get_misses")() mustEqual 1
-        Await.result(qc.remove("ducklings")) mustEqual None
+        qc.remove("ducklings")() mustEqual None
         Stats.getCounter("get_hits")() mustEqual 2
         Stats.getCounter("get_misses")() mustEqual 2
-        Await.result(qc.remove("ducklings")) mustEqual None
+        qc.remove("ducklings")() mustEqual None
         Stats.getCounter("get_hits")() mustEqual 2
         Stats.getCounter("get_misses")() mustEqual 3
       }
@@ -195,12 +195,12 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
         withTempFolder {
           qc = new QueueCollection(folderName, timer, scheduler, config, Nil, Nil)
           qc.add("jobs", "job1".getBytes)
-          Await.result(qc.remove("jobs+client1")) mustEqual None
+          qc.remove("jobs+client1")() mustEqual None
           qc.add("jobs", "job2".getBytes)
 
-          Await.result(qc.remove("jobs+client1")) must beSomeQItem("job2")
-          Await.result(qc.remove("jobs")) must beSomeQItem("job1")
-          Await.result(qc.remove("jobs")) must beSomeQItem("job2")
+          qc.remove("jobs+client1")() must beSomeQItem("job2")
+          qc.remove("jobs")() must beSomeQItem("job1")
+          qc.remove("jobs")() must beSomeQItem("job2")
         }
       }
 
@@ -211,12 +211,12 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
           qc = new QueueCollection(folderName, timer, scheduler, config, Nil, Nil)
           qc.loadQueues()
           qc.add("jobs", "job1".getBytes)
-          Await.result(qc.remove("jobs+client1")) must beSomeQItem("job1")
+          qc.remove("jobs+client1")() must beSomeQItem("job1")
           qc.add("jobs", "job2".getBytes)
 
-          Await.result(qc.remove("jobs+client1")) must beSomeQItem("job2")
-          Await.result(qc.remove("jobs")) must beSomeQItem("job1")
-          Await.result(qc.remove("jobs")) must beSomeQItem("job2")
+          qc.remove("jobs+client1")() must beSomeQItem("job2")
+          qc.remove("jobs")() must beSomeQItem("job1")
+          qc.remove("jobs")() must beSomeQItem("job2")
         }
       }
 
@@ -231,11 +231,11 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
           qc.delete("jobs+client1")
 
           new File(folderName).list().toList.sorted mustEqual List("jobs")
-          Await.result(qc.remove("jobs")) must beSomeQItem("job1")
+          qc.remove("jobs")() must beSomeQItem("job1")
 
           qc.add("jobs", "job2".getBytes)
           new File(folderName).list().toList.sorted mustEqual List("jobs")
-          Await.result(qc.remove("jobs")) must beSomeQItem("job2")
+          qc.remove("jobs")() must beSomeQItem("job2")
         }
       }
 
@@ -249,8 +249,8 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
           qc = new QueueCollection(folderName, timer, scheduler, config, List(jobConfig), Nil)
           qc.loadQueues()
           qc.add("jobs", "job1".getBytes)
-          Await.result(qc.remove("jobs")) mustEqual None
-          Await.result(qc.remove("jobs+client1")) must beSomeQItem("job1")
+          qc.remove("jobs")() mustEqual None
+          qc.remove("jobs+client1")() must beSomeQItem("job1")
         }
       }
     }
@@ -265,10 +265,10 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
 
             qc.add("expired", "hello".getBytes, Some(5.seconds.fromNow))
             time.advance(4.seconds)
-            Await.result(qc.remove("expired")) must beSomeQItem("hello")
+            qc.remove("expired")() must beSomeQItem("hello")
             qc.add("expired", "hello".getBytes, Some(5.seconds.fromNow))
             time.advance(6.seconds)
-            Await.result(qc.remove("expired")) mustEqual None
+            qc.remove("expired")() mustEqual None
           }
         }
       }
@@ -291,10 +291,10 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
             time.advance(2.seconds)
             qc.queue("jobs").get.length mustEqual 1
             qc.queue("expired").get.length mustEqual 0
-            Await.result(qc.remove("jobs")) mustEqual None
+            qc.remove("jobs")() mustEqual None
             qc.queue("jobs").get.length mustEqual 0
             qc.queue("expired").get.length mustEqual 1
-            Await.result(qc.remove("expired")) must beSomeQItem("hello")
+            qc.remove("expired")() must beSomeQItem("hello")
           }
         }
       }
@@ -310,7 +310,7 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
           qc = new QueueCollection(folderName, timer, scheduler, config, Nil, List(aliasConfig))
           qc.loadQueues()
           qc.add("nom-de-guerre", "brie".getBytes)
-          Await.result(qc.remove("fromage")) must beSomeQItem("brie")
+          qc.remove("fromage")() must beSomeQItem("brie")
         }
       }
 
@@ -323,8 +323,8 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
           qc = new QueueCollection(folderName, timer, scheduler, config, Nil, List(aliasConfig))
           qc.loadQueues()
           qc.add("nom-de-guerre", "brie".getBytes)
-          Await.result(qc.remove("fromage")) must beSomeQItem("brie")
-          Await.result(qc.remove("formaggio")) must beSomeQItem("brie")
+          qc.remove("fromage")() must beSomeQItem("brie")
+          qc.remove("formaggio")() must beSomeQItem("brie")
         }
       }
 
@@ -349,12 +349,12 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
           qc.loadQueues()
 
           // create fanouts
-          Await.result(qc.remove("fromage+brie")) must beNone
-          Await.result(qc.remove("formaggio+gorgonzola")) must beNone
+          qc.remove("fromage+brie")() must beNone
+          qc.remove("formaggio+gorgonzola")() must beNone
 
           qc.add("nom-de-guerre", "cheez whiz".getBytes)
-          Await.result(qc.remove("fromage+brie")) must beSomeQItem("cheez whiz")
-          Await.result(qc.remove("formaggio+gorgonzola")) must beSomeQItem("cheez whiz")
+          qc.remove("fromage+brie")() must beSomeQItem("cheez whiz")
+          qc.remove("formaggio+gorgonzola")() must beSomeQItem("cheez whiz")
         }
       }
 
@@ -367,7 +367,7 @@ class QueueCollectionSpec extends SpecificationWithJUnit with TempFolder with Te
           qc = new QueueCollection(folderName, timer, scheduler, config, Nil, List(aliasConfig))
           qc.loadQueues()
           qc.add("nom-de-guerre", "brie".getBytes)
-          Await.result(qc.remove("nom-de-guerre")) must beNone
+          qc.remove("nom-de-guerre")() must beNone
         }
       }
 

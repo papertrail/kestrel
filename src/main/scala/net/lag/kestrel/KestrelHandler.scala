@@ -17,6 +17,7 @@
 
 package net.lag.kestrel
 
+import com.twitter.conversions.time._
 import com.twitter.logging.{Level, Logger}
 import com.twitter.ostrich.admin.{BackgroundProcess, ServiceTracker}
 import com.twitter.ostrich.stats.Stats
@@ -31,16 +32,8 @@ object TooManyOpenReadsException extends TooManyOpenReadsException
 class ServerStatusNotConfiguredException
 extends Exception("Server status not configured.")
 
-class AvailabilityException(op: String, serverScope: Boolean)
-extends Exception(op) {
-  def this(op: String) {
-    this("Server not available for operation %s".format(op), true)
-  }
-
-  def this(op: String, queue: String, reason: String)  = {
-    this("The operation %s is disallowed on queue %s. %s".format(op, queue, reason), false)
-  }
-}
+class AvailabilityException(op: String)
+extends Exception("Server not available for operation %s".format(op))
 
 trait SimplePendingReads {
   def queues: QueueCollection
@@ -140,10 +133,9 @@ abstract class KestrelHandler(
 
   val finished = new AtomicBoolean(false)
 
-  val waiters: mutable.Set[Future[Option[QItem]]] = mutable.Set()
+  @volatile var waitingFor: Option[Future[Option[QItem]]] = None
 
-  val sessionsCount = Kestrel.sessions.incrementAndGet()
-  val (refuseWrites, refuseReads) = Kestrel.checkConnectionLimits(sessionsCount)
+  Kestrel.sessions.incrementAndGet()
   Stats.incr("total_connections")
 
   if (Kestrel.traceSessions) {
@@ -156,10 +148,11 @@ abstract class KestrelHandler(
 
   // called exactly once by finagle when the session ends.
   def finish() {
-    finished.set(true)
-
     abortAnyOpenRead(Kestrel.traceSessions)
-    abortWaiters()
+    waitingFor.foreach { w =>
+      w.cancel()
+      Stats.incr("cmd_get_timeout_dropped")
+    }
 
     if (Kestrel.traceSessions) {
       log.info("End of session %d", sessionId)
@@ -179,30 +172,6 @@ abstract class KestrelHandler(
   protected def addPendingRead(key: String, xid: Int): Option[Long]
   protected def cancelAllPendingReads(): Int
 
-  protected def abortWaiters() {
-    waiters.synchronized {
-      waiters.foreach { w =>
-        w.raise(new FutureCancelledException)
-        Stats.incr("cmd_get_timeout_dropped")
-        Stats.incr("waiters_aborted")
-      }
-      waiters.clear()
-    }
-  }
-
-  protected def addWaiter(w: Future[Option[QItem]]) {
-    waiters.synchronized {
-      waiters += w
-      if (finished.get) abortWaiters()
-    }
-  }
-
-  protected def removeWaiter(w: Future[Option[QItem]]) {
-    waiters.synchronized {
-      waiters -= w
-    }
-  }
-
   // will do a continuous fetch on a queue until time runs out or read buffer is full.
   final def monitorUntil(key: String, timeLimit: Option[Time], maxItems: Int, opening: Boolean)(f: (Option[QItem], Option[Long]) => Unit) {
     checkBlockReads("monitorUntil", key)
@@ -221,27 +190,13 @@ abstract class KestrelHandler(
         f(None, None)
       } else {
         Stats.incr("cmd_monitor_get")
-        val future = queues.remove(key, timeLimit, opening, false, Some(sessionDescription))
-        addWaiter(future)
-        future.onSuccess {
+        queues.remove(key, timeLimit, opening, false, Some(sessionDescription)).onSuccess {
           case None =>
-            removeWaiter(future)
             f(None, None)
           case x @ Some(item) =>
-            removeWaiter(future)
-            val xidContext = if (opening) {
-              val addedValue = addPendingRead(key, item.xid)
-              if (finished.get()) {
-                Stats.incr("finished_but_add")
-                abortAnyOpenRead(Kestrel.traceSessions)
-                None
-              } else addedValue
-            } else None
+            val xidContext = if (opening) addPendingRead(key, item.xid) else None
             f(x, xidContext)
             monitorLoop(maxItems - 1)
-        } onFailure { case e =>
-          log.error("Failure in monitor-loop while removing item from queue: %s.".format(key))
-          removeWaiter(future)
         }
       }
     }
@@ -266,29 +221,27 @@ abstract class KestrelHandler(
     }
     val startTime = Time.now
     val future = queues.remove(key, timeout, opening, peeking, Some(sessionDescription))
-    addWaiter(future)
+    waitingFor = Some(future)
     future.map { itemOption =>
-      removeWaiter(future)
+      waitingFor = None
       itemOption.foreach { item =>
         log.debug("get <- %s", item)
-        if (opening) {
-          addPendingRead(key, item.xid)
-          if (finished.get()) {
-            Stats.incr("finished_but_add")
-            abortAnyOpenRead(Kestrel.traceSessions)
-          }
-        }
+        if (opening) addPendingRead(key, item.xid)
       }
       itemOption
+    }
+    future.onCancellation {
+      // if the connection is closed, pre-emptively return un-acked items.
+      abortAnyOpenRead(Kestrel.traceSessions)
     }
     future
   }
 
   def abortAnyOpenRead(trace: Boolean) {
-    val abortedReads = cancelAllPendingReads()
+    val abortedReads = cancelAllPendingReads();
     Stats.incr("cmd_get_open_dropped", abortedReads)
     if (trace) {
-      log.info("Aborted %d pending reads", abortedReads)
+      log.info("Aborted %d pending reads", abortedReads);
     }
   }
 
@@ -296,16 +249,11 @@ abstract class KestrelHandler(
     checkBlockWrites("setItem", key)
     log.debug("set -> q=%s flags=%d expiry=%s size=%d", key, flags, expiry, data.length)
     Stats.incr("cmd_set")
-
-    val sw = Stopwatch.start()
-    val rv = queues.add(key, data, expiry, Time.now, Some(sessionDescription))
-
-    // Retrieve a value so that we can add the same value in the global as well as the
-    // queue specific stats
-    val setLatency = sw()
-
-    Stats.addMetric("set_latency_usec", setLatency.inMicroseconds.toInt)
-    Stats.addMetric("q/" + key + "/set_latency_usec", setLatency.inMicroseconds.toInt)
+    val (rv, nsec) = Duration.inNanoseconds {
+      queues.add(key, data, expiry, Time.now, Some(sessionDescription))
+    }
+    Stats.addMetric("set_latency_usec", nsec.inMicroseconds.toInt)
+    Stats.addMetric("q/" + key + "/set_latency_usec", nsec.inMicroseconds.toInt)
     rv
   }
 
@@ -337,14 +285,14 @@ abstract class KestrelHandler(
   def safeCheckBlockReads: Boolean = serverStatus map { _.blockReads } getOrElse(false)
 
   def checkBlockReads(op: String, key: String) {
-    if (refuseReads || safeCheckBlockReads) {
+    if (safeCheckBlockReads) {
       log.debug("Blocking %s on '%s' (%s)", op, key, sessionDescription)
       throw new AvailabilityException(op)
     }
   }
 
   def checkBlockWrites(op: String, key: String) {
-    if (refuseWrites || (serverStatus map { _.blockWrites } getOrElse(false))) {
+    if (serverStatus map { _.blockWrites } getOrElse(false)) {
       log.debug("Blocking %s on '%s' (%s)", op, key, sessionDescription)
       throw new AvailabilityException(op)
     }

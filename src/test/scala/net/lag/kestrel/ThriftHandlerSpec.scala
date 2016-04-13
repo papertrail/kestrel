@@ -19,7 +19,7 @@ package net.lag.kestrel
 import com.twitter.conversions.time._
 import com.twitter.finagle.ClientConnection
 import com.twitter.ostrich.admin.RuntimeEnvironment
-import com.twitter.util.{Await, Future, Promise, Time, TimeControl, MockTimer}
+import com.twitter.util.{Future, Promise, Time, TimeControl, MockTimer}
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import org.jboss.netty.buffer.ChannelBuffers
@@ -87,7 +87,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).add(equal("test"), equal(item1), equal(None), equal(Time.now), any[ClientDesc]) willReturn true
           }
 
-          Await.result(thriftHandler.put("test", List(ByteBuffer.wrap(item1)), 0)) mustEqual 1
+          thriftHandler.put("test", List(ByteBuffer.wrap(item1)), 0)() mustEqual 1
         }
       }
 
@@ -98,7 +98,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).add(equal("test"), equal(item2), equal(None), equal(Time.now), any[ClientDesc]) willReturn true
           }
 
-          Await.result(thriftHandler.put("test", List(ByteBuffer.wrap(item1), ByteBuffer.wrap(item2)), 0)) mustEqual 2
+          thriftHandler.put("test", List(ByteBuffer.wrap(item1), ByteBuffer.wrap(item2)), 0)() mustEqual 2
         }
       }
 
@@ -109,11 +109,11 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).add(equal("test"), equal(item2), equal(None), equal(Time.now), any[ClientDesc]) willReturn false
           }
 
-          Await.result(thriftHandler.put("test", List(
+          thriftHandler.put("test", List(
             ByteBuffer.wrap(item1),
             ByteBuffer.wrap(item2),
             ByteBuffer.wrap(item3)
-          ), 0)) mustEqual 1
+          ), 0)() mustEqual 1
         }
       }
 
@@ -123,7 +123,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).add(equal("test"), equal(item1), equal(Some(5.seconds.fromNow)), equal(Time.now), any[ClientDesc]) willReturn true
           }
 
-          Await.result(thriftHandler.put("test", List(ByteBuffer.wrap(item1)), 5000)) mustEqual 1
+          thriftHandler.put("test", List(ByteBuffer.wrap(item1)), 5000)() mustEqual 1
         }
       }
     }
@@ -137,7 +137,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).remove(equal("test"), equal(None), equal(false), equal(false), any[ClientDesc]) willReturn Future(Some(qitem))
           }
 
-          Await.result(thriftHandler.get("test", 1, 0, 0)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 0L))
+          thriftHandler.get("test", 1, 0, 0)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 0L))
         }
       }
 
@@ -149,7 +149,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).remove(equal("test"), equal(Some(1.second.fromNow)), equal(false), equal(false), any[ClientDesc]) willReturn Future(Some(qitem))
           }
 
-          Await.result(thriftHandler.get("test", 1, 1000, 0)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 0L))
+          thriftHandler.get("test", 1, 1000, 0)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 0L))
         }
       }
 
@@ -161,7 +161,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).remove(equal("test"), equal(None), equal(true), equal(false), any[ClientDesc]) willReturn Future(Some(qitem))
           }
 
-          Await.result(thriftHandler.get("test", 1, 0, 500)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
+          thriftHandler.get("test", 1, 0, 500)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
         }
       }
 
@@ -176,7 +176,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).remove(equal("test"), equal(None), equal(true), equal(false), any[ClientDesc]) willReturn Future(None)
           }
 
-          Await.result(thriftHandler.get("test", 5, 0, 500)) mustEqual List(
+          thriftHandler.get("test", 5, 0, 500)() mustEqual List(
             thrift.Item(ByteBuffer.wrap(item1), 1L),
             thrift.Item(ByteBuffer.wrap(item2), 2L)
           )
@@ -193,8 +193,8 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).remove(equal("spam"), equal(None), equal(true), equal(false), any[ClientDesc]) willReturn Future(Some(qitem2))
           }
 
-          Await.result(thriftHandler.get("test", 1, 0, 500)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
-          Await.result(thriftHandler.get("spam", 1, 0, 500)) mustEqual List(thrift.Item(ByteBuffer.wrap(item2), 2L))
+          thriftHandler.get("test", 1, 0, 500)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
+          thriftHandler.get("spam", 1, 0, 500)() mustEqual List(thrift.Item(ByteBuffer.wrap(item2), 2L))
         }
       }
 
@@ -207,11 +207,11 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             }
           }
 
-          Await.result(thriftHandler.get("test", 10, 0, 500)) mustEqual (1 to 10).map { i =>
+          thriftHandler.get("test", 10, 0, 500)() mustEqual (1 to 10).map { i =>
             thrift.Item(ByteBuffer.wrap(item1), i.toLong)
           }
 
-          Await.result(thriftHandler.get("test", 10, 0, 500)) mustEqual List()
+          thriftHandler.get("test", 10, 0, 500)() mustEqual List()
         }
       }
     }
@@ -252,7 +252,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).unremove("test", 1)
           }
 
-          Await.result(thriftHandler.get("test", 1, 0, 500)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
+          thriftHandler.get("test", 1, 0, 500)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
 
           time.advance(501.milliseconds)
           timer.tick()
@@ -272,7 +272,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).unremove("test", 2)
           }
 
-          Await.result(thriftHandler.get("test", 5, 0, 500)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L),
+          thriftHandler.get("test", 5, 0, 500)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L),
                                                                 thrift.Item(ByteBuffer.wrap(item2), 2L))
 
           time.advance(501.milliseconds)
@@ -289,8 +289,8 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).unremove("test", 1)
           }
 
-          Await.result(thriftHandler.get("test", 1, 0, 500)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
-          Await.result(thriftHandler.abort("test", Set(1L))) mustEqual 1
+          thriftHandler.get("test", 1, 0, 500)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
+          thriftHandler.abort("test", Set(1L))() mustEqual 1
 
           timer.tasks.size mustEqual 0
         }
@@ -305,8 +305,8 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).confirmRemove("test", 1)
           }
 
-          Await.result(thriftHandler.get("test", 1, 0, 500)) mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
-          Await.result(thriftHandler.confirm("test", Set(1L))) mustEqual 1
+          thriftHandler.get("test", 1, 0, 500)() mustEqual List(thrift.Item(ByteBuffer.wrap(item1), 1L))
+          thriftHandler.confirm("test", Set(1L))() mustEqual 1
 
           timer.tasks.size mustEqual 0
         }
@@ -328,8 +328,8 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(queueCollection).confirmRemove("test", 3)
           }
 
-          Await.result(thriftHandler.get("test", 5, 0, 500))
-          Await.result(thriftHandler.confirm("test", Set(1L, 3L))) mustEqual 2
+          thriftHandler.get("test", 5, 0, 500)()
+          thriftHandler.confirm("test", Set(1L, 3L))() mustEqual 2
 
           timer.tasks.size mustEqual 1
 
@@ -358,7 +358,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
         }
 
         val qinfo = thrift.QueueInfo(Some(ByteBuffer.wrap(item1)), 10, 10240, 29999, 500, 2, 1)
-        Await.result(thriftHandler.peek("test")) mustEqual qinfo
+        thriftHandler.peek("test")() mustEqual qinfo
       }
     }
 
@@ -386,7 +386,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
       withThriftHandler { thriftHandler =>
         val runtime = RuntimeEnvironment(this, Array())
         Kestrel.runtime = runtime
-        Await.result(thriftHandler.getVersion()) must haveClass[String]
+        thriftHandler.getVersion()() must haveClass[String]
       }
     }
 
@@ -406,7 +406,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
       "handle server sets not configured" in {
         withThriftHandler { thriftHandler =>
           thriftHandler.handler.serverStatus mustEqual None
-          Await.result(thriftHandler.currentStatus()) mustEqual TStatus.NotConfigured
+          thriftHandler.currentStatus()() mustEqual TStatus.NotConfigured
         }
       }
 
@@ -416,7 +416,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             one(serverStatus).status willReturn Down
           }
 
-          Await.result(thriftHandler.currentStatus()) mustEqual TStatus.NotConfigured
+          thriftHandler.currentStatus()() mustEqual TStatus.NotConfigured
         }
       }
 
@@ -429,7 +429,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
               one(serverStatus).status willReturn status
             }
 
-            Await.result(thriftHandler.currentStatus()) mustEqual thriftStatus
+            thriftHandler.currentStatus()() mustEqual thriftStatus
           }
         }
       }
@@ -441,7 +441,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
           thriftHandler.handler.serverStatus mustEqual None
           val future = thriftHandler.setStatus(TStatus.Up)
           future.isThrow mustEqual true
-          Await.result(future) must throwA[ServerStatusNotConfiguredException]
+          future() must throwA[ServerStatusNotConfiguredException]
         }
       }
 
@@ -453,7 +453,7 @@ class ThriftHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMo
             expect {
               one(serverStatus).setStatus(thriftStatus.name)
             }
-            Await.result(thriftHandler.setStatus(thriftStatus)) mustEqual ()
+            thriftHandler.setStatus(thriftStatus)() mustEqual ()
           }
         }
       }

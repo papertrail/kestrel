@@ -20,11 +20,11 @@ package net.lag.kestrel
 import java.io.File
 import java.util.concurrent.{CountDownLatch, ScheduledExecutorService}
 import scala.collection.mutable
+import com.twitter.conversions.time._
 import com.twitter.logging.Logger
 import com.twitter.ostrich.stats.Stats
-import com.twitter.util._
+import com.twitter.util.{Duration, Future, Time, Timer}
 import config._
-import net.lag.kestrel.config.QueueConfig
 
 class InaccessibleQueuePath extends Exception("Inaccessible queue path: Must be a directory and writable")
 
@@ -32,7 +32,7 @@ object QueueCollection {
   val unknown = () => "<unknown>"
 }
 
-class QueueCollection(var storageContainer:PersistentStreamContainer, timer: Timer,
+class QueueCollection(queueFolder: String, timer: Timer, journalSyncScheduler: ScheduledExecutorService,
                       @volatile private var defaultQueueConfig: QueueConfig,
                       @volatile var queueBuilders: List[QueueBuilder],
                       @volatile var aliasBuilders: List[AliasBuilder]) {
@@ -40,6 +40,16 @@ class QueueCollection(var storageContainer:PersistentStreamContainer, timer: Tim
   type SessionDescription = Option[() => String]
 
   private val log = Logger.get(getClass.getName)
+
+  private val path = new File(queueFolder)
+
+  if (! path.isDirectory) {
+    path.mkdirs()
+  }
+  if (! path.isDirectory || ! path.canWrite) {
+    throw new InaccessibleQueuePath
+  }
+
   private val queues = new mutable.HashMap[String, PersistentQueue]
   private val fanout_queues = new mutable.HashMap[String, mutable.HashSet[String]]
   private val aliases = new mutable.HashMap[String, AliasedQueue]
@@ -47,14 +57,6 @@ class QueueCollection(var storageContainer:PersistentStreamContainer, timer: Tim
 
   @volatile private var queueBuilderMap = Map(queueBuilders.map { builder => (builder.name, builder) }: _*)
   @volatile private var aliasConfigMap = Map(aliasBuilders.map { builder => (builder.name, builder()) }: _*)
-
-  def this(queueFolder: String, timer: Timer, journalSyncScheduler: ScheduledExecutorService,
-                        defaultQueueConfig: QueueConfig,
-                        queueBuilders: List[QueueBuilder],
-                        aliasBuilders: List[AliasBuilder]) = {
-    this(new LocalDirectory(queueFolder, journalSyncScheduler), timer,
-      defaultQueueConfig, queueBuilders, aliasBuilders)
-  }
 
   private def checkNames {
     val duplicates = queueBuilderMap.keySet & aliasConfigMap.keySet
@@ -73,7 +75,7 @@ class QueueCollection(var storageContainer:PersistentStreamContainer, timer: Tim
     }
   }
 
-  private def buildQueue(name: String, masterName: Option[String], path: PersistentStreamContainer,
+  private def buildQueue(name: String, masterName: Option[String], path: String,
                          sessionDescription: SessionDescription) = {
     if ((name contains ".") || (name contains "/") || (name contains "~")) {
       throw new Exception("Queue name contains illegal characters (one of: ~ . /).")
@@ -81,14 +83,13 @@ class QueueCollection(var storageContainer:PersistentStreamContainer, timer: Tim
     val config = getQueueConfig(name, masterName)
     log.info("Setting up queue %s: %s (via %s)", name, config, sessionDescription.getOrElse(unknown)())
     Stats.incr("queue_creates")
-    val queueLookup:(String => Option[PersistentQueue]) = this.apply
-    new PersistentQueue(name, path, config, timer, Option(queueLookup))
+    new PersistentQueue(name, path, config, timer, journalSyncScheduler, Some(this.apply))
   }
 
   // preload any queues
   def loadQueues() {
     val startupDesc = Some(() => "<startup>")
-    Journal.getQueueNamesFromFolder(storageContainer) map { queue(_, startupDesc) }
+    Journal.getQueueNamesFromFolder(path) map { queue(_, startupDesc) }
     createAliases()
   }
 
@@ -168,12 +169,12 @@ class QueueCollection(var storageContainer:PersistentStreamContainer, timer: Tim
           // only happens when creating a queue for the first time.
           val q = if (name contains '+') {
             val master = name.split('+')(0)
-            val fanoutQ = buildQueue(name, Some(master), storageContainer, sessionDescription)
+            val fanoutQ = buildQueue(name, Some(master), path.getPath, sessionDescription)
             fanout_queues.getOrElseUpdate(master, new mutable.HashSet[String]) += name
             log.info("Fanout queue %s added to %s by %s", name, master, sessionDescription.getOrElse(unknown)())
             fanoutQ
           } else {
-            buildQueue(name, None, storageContainer, sessionDescription)
+            buildQueue(name, None, path.getPath, sessionDescription)
           }
           q.setup
           queues(name) = q
@@ -184,7 +185,7 @@ class QueueCollection(var storageContainer:PersistentStreamContainer, timer: Tim
       }
     }
 
-  def apply(name: String): Option[PersistentQueue] = queue(name)
+  def apply(name: String) = queue(name)
 
   /**
    * Get an alias, creating it if necessary.
