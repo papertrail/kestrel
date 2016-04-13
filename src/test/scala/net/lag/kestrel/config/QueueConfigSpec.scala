@@ -23,7 +23,7 @@ import org.specs.SpecificationWithJUnit
 class QueueConfigSpec extends SpecificationWithJUnit {
   "QueueBuilder" should {
     val sampleConfig =
-      QueueConfig(1, 1.byte, 1.byte, None, 1.byte, 1.byte, 1.byte, Some(0.seconds), false, false, 0.seconds, None, 1, false, None, false, false, None, None, None)
+      QueueConfig(1, 1.byte, 1.byte, None, 1.byte, 1.byte, 1.byte, Some(0.seconds), false, false, 0.seconds, None, 1, false, None, false, false)
 
     val unconfiguredBuilder = new QueueBuilder()
     val configSettings = unconfiguredBuilder.getClass.getMethods.filter {

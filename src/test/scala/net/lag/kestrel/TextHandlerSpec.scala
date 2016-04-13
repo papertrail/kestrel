@@ -20,7 +20,7 @@ import com.twitter.conversions.time._
 import com.twitter.finagle.ClientConnection
 import com.twitter.naggati.test.TestCodec
 import com.twitter.ostrich.admin.RuntimeEnvironment
-import com.twitter.util.{Await, Future, Promise, Time}
+import com.twitter.util.{Future, Promise, Time}
 import java.net.InetSocketAddress
 import org.jboss.netty.buffer.ChannelBuffers
 import org.specs.SpecificationWithJUnit
@@ -102,7 +102,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
 
         textHandler.handler.pendingReads.add("test", 100)
         textHandler.handler.pendingReads.peek("test") mustEqual List(100)
-        Await.result(textHandler(TextRequest("get", List("test"), Nil))) mustEqual ItemResponse(Some(qitem.data))
+        textHandler(TextRequest("get", List("test"), Nil))() mustEqual ItemResponse(Some(qitem.data))
         textHandler.handler.pendingReads.peek("test") mustEqual List(qitem.xid)
       }
 
@@ -113,7 +113,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
               one(queueCollection).remove(equal("test"), equal(Some(500.milliseconds.fromNow)), equal(true), equal(false), any[ClientDesc]) willReturn Future.value(Some(qitem))
             }
 
-            Await.result(textHandler(TextRequest("get", List("test", "500"), Nil))) mustEqual ItemResponse(Some(qitem.data))
+            textHandler(TextRequest("get", List("test", "500"), Nil))() mustEqual ItemResponse(Some(qitem.data))
           }
         }
 
@@ -128,7 +128,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
             val future = textHandler(TextRequest("get", List("test", "500"), Nil))
 
             promise.setValue(Some(qitem))
-            Await.result(future) mustEqual ItemResponse(Some(qitem.data))
+            future() mustEqual ItemResponse(Some(qitem.data))
           }
         }
 
@@ -143,7 +143,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
             val future = textHandler(TextRequest("get", List("test", "500"), Nil))
 
             promise.setValue(None)
-            Await.result(future) mustEqual ItemResponse(None)
+            future() mustEqual ItemResponse(None)
           }
         }
       }
@@ -153,7 +153,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
           one(queueCollection).remove(equal("test"), equal(None), equal(true), equal(false), any[ClientDesc]) willReturn Future.value(None)
         }
 
-        Await.result(textHandler(TextRequest("get", List("test"), Nil))) mustEqual ItemResponse(None)
+        textHandler(TextRequest("get", List("test"), Nil))() mustEqual ItemResponse(None)
       }
 
       "item ready" in {
@@ -161,7 +161,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
           one(queueCollection).remove(equal("test"), equal(None), equal(true), equal(false), any[ClientDesc]) willReturn Future.value(Some(qitem))
         }
 
-        Await.result(textHandler(TextRequest("get", List("test"), Nil))) mustEqual ItemResponse(Some(qitem.data))
+        textHandler(TextRequest("get", List("test"), Nil))() mustEqual ItemResponse(Some(qitem.data))
       }
     }
 
@@ -173,7 +173,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
         }
 
         val textHandler = new TextHandler(connection, queueCollection, 10)
-        Await.result(textHandler(TextRequest("put", List("test"), List("hello".getBytes)))) mustEqual CountResponse(1)
+        textHandler(TextRequest("put", List("test"), List("hello".getBytes)))() mustEqual CountResponse(1)
       }
     }
 
@@ -184,7 +184,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
       }
 
       val textHandler = new TextHandler(connection, queueCollection, 10)
-      Await.result(textHandler(TextRequest("delete", List("test"), Nil))) mustEqual CountResponse(0)
+      textHandler(TextRequest("delete", List("test"), Nil))() mustEqual CountResponse(0)
     }
 
     "version request" in {
@@ -196,7 +196,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
       Kestrel.runtime = runtime
 
       val textHandler = new TextHandler(connection, queueCollection, 10)
-      Await.result(textHandler(TextRequest("version", Nil, Nil))) must haveClass[StringResponse]
+      textHandler(TextRequest("version", Nil, Nil))() must haveClass[StringResponse]
     }
 
     "status request" in {
@@ -208,11 +208,11 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
         val textHandler = new TextHandler(connection, queueCollection, 10)
 
         "check status should return an error" in {
-          Await.result(textHandler(TextRequest("status", Nil, Nil))) must haveClass[ErrorResponse]
+          textHandler(TextRequest("status", Nil, Nil))() must haveClass[ErrorResponse]
         }
 
         "set status should return an error" in {
-          Await.result(textHandler(TextRequest("status", List("UP"), Nil))) must haveClass[ErrorResponse]
+          textHandler(TextRequest("status", List("UP"), Nil))() must haveClass[ErrorResponse]
         }
       }
 
@@ -229,7 +229,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
           expect {
             one(serverStatus).status willReturn Up
           }
-          Await.result(textHandler(TextRequest("status", Nil, Nil))) mustEqual StringResponse("UP")
+          textHandler(TextRequest("status", Nil, Nil))() mustEqual StringResponse("UP")
         }
 
         "set status should set current status" in {
@@ -237,7 +237,7 @@ class TextHandlerSpec extends SpecificationWithJUnit with JMocker with ClassMock
             one(serverStatus).setStatus("ReadOnly")
           }
 
-          Await.result(textHandler(TextRequest("status", List("ReadOnly"), Nil))) mustEqual CountResponse(0)
+          textHandler(TextRequest("status", List("ReadOnly"), Nil))() mustEqual CountResponse(0)
         }
       }
     }

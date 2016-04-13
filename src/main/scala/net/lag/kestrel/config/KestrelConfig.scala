@@ -33,6 +33,9 @@ case class ZooKeeperConfig(
   host: String,
   port: Int,
   pathPrefix: String,
+  roleSS: String,
+  envSS: String,
+  nameSS: String,
   sessionTimeout: Duration,
   credentials: Option[(String, String)],
   acl: ZooKeeperACL,
@@ -43,9 +46,9 @@ case class ZooKeeperConfig(
     val clientInit = clientInitializer.map { _ => "<custom>" }.getOrElse("<default>")
     val serverSetInit = serverSetInitializer.map { _ => "<custom>" }.getOrElse("<default>")
 
-    ("host=%s port=%d pathPrefix=%s sessionTimeout=%s credentials=%s acl=%s " +
+    ("host=%s port=%d pathPrefix=%s roleSS=%s envSS=%s nameSS=%s sessionTimeout=%s credentials=%s acl=%s " +
      "clientInitializer=%s serverSetInitializer=%s").format(
-      host, port, pathPrefix, sessionTimeout, creds, acl, clientInit, serverSetInit)
+      host, port, pathPrefix, roleSS, envSS, nameSS, sessionTimeout, creds, acl, clientInit, serverSetInit)
   }
 }
 
@@ -94,12 +97,29 @@ class ZooKeeperBuilder {
 
   /**
    * Path prefix used to publish Kestrel server availability to the Apache ZooKeeper cluster.
+   * This is used as a prefix for the full path which will be pathPrefix/roleSS/envSS/nameSS.
    * Kestrel will append an additional level of hierarchy for the type of operations accepted
    * (e.g., "/read" or "/write"). Required.
    *
    * Example: "/kestrel/production"
    */
-  var pathPrefix: String = null
+  var pathPrefix: String = "/"
+
+  /**
+   * The role of the service. Should typically be the LDAP service account name.
+   * e.g. Kestrel
+   */
+  var roleSS: String = "kestrel"
+
+  /**
+   * test/staging/prod etc. The environment in which this service is running.
+   */
+  var envSS: String = "test"
+
+  /**
+   * The name of the service that is running. In kestrel's case, it will be the cluster.
+   */
+  var nameSS: String = "devel"
 
   /**
    * ZooKeeper session timeout. Defaults to 10 seconds.
@@ -140,8 +160,8 @@ class ZooKeeperBuilder {
   var serverSetInitializer: Option[(ZooKeeperConfig, ZooKeeperClient, String) => ServerSet] = None
 
   def apply() = {
-    ZooKeeperConfig(host, port, pathPrefix, sessionTimeout, credentials, acl, clientInitializer,
-                    serverSetInitializer)
+    ZooKeeperConfig(host, port, pathPrefix, roleSS, envSS, nameSS, sessionTimeout,
+                    credentials, acl, clientInitializer, serverSetInitializer)
   }
 }
 
@@ -243,32 +263,16 @@ trait KestrelConfig extends ServerConfig[Kestrel] {
   var enableSessionTrace: Boolean = false
 
   /**
-   * When set refuses write after the specified number of connections
-   */
-  var connectionLimitRefuseWrites: Option[Int] = None
-
-  /**
-   * When set refuses reads after the specified number of connections
-   */
-  var connectionLimitRefuseReads: Option[Int] = None
-
-  /**
    * Optional Apache Zookeeper configuration used to publish serverset-based availability of Kestrel
    * instances. By default no such information is published.
    */
   var zookeeper: Option[ZooKeeperBuilder] = None
 
-  /**
-   * Fully qualified class name for extension backend.
-   */
-  var beFactoryClass: Option[String] = None
-
   def apply(runtime: RuntimeEnvironment) = {
     new Kestrel(
       default(), queues, aliases, listenAddress, memcacheListenPort, textListenPort, thriftListenPort,
       queuePath, expirationTimerFrequency, clientTimeout, maxOpenTransactions, connectionBacklog,
-      statusFile, defaultStatus, statusChangeGracePeriod, enableSessionTrace,
-      connectionLimitRefuseWrites, connectionLimitRefuseReads, zookeeper.map { _()}, beFactoryClass
+      statusFile, defaultStatus, statusChangeGracePeriod, enableSessionTrace, zookeeper.map { _() }
     )
   }
 

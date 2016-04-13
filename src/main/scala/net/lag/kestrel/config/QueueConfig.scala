@@ -39,22 +39,17 @@ case class QueueConfig(
   fanoutOnly: Boolean,
   maxQueueAge: Option[Duration],
   enableTrace: Boolean,
-  disableAggressiveRewrites:Boolean,
-  openTransactionTimeout:Option[Duration],
-  whiteListClientIdForDequeue:Option[String] = None,
-  whiteListClientIdForEnqueue:Option[String] = None
+  disableAggressiveRewrites:Boolean
 ) {
   override def toString() = {
     ("maxItems=%d maxSize=%s maxItemSize=%s maxAge=%s defaultJournalSize=%s maxMemorySize=%s " +
      "maxJournalSize=%s minJournalCompactDelay=%s discardOldWhenFull=%s keepJournal=%s " +
      "syncJournal=%s expireToQueue=%s maxExpireSweep=%d fanoutOnly=%s maxQueueAge=%s " +
-     "enableTrace=%s disableAggressiveRewrites=%s, openTransactionTimeout=%s, " +
-     "whiteListClientIdForDequeue=%s, whiteListClientIdForEnqueue=%s").format(
+     "enableTrace=%s disableAggressiveRewrites=%s").format(
       maxItems, maxSize, maxItemSize, maxAge, defaultJournalSize, maxMemorySize,
       maxJournalSize, minJournalCompactDelay, discardOldWhenFull, keepJournal,
       syncJournal, expireToQueue, maxExpireSweep, fanoutOnly, maxQueueAge,
-      enableTrace, disableAggressiveRewrites, openTransactionTimeout,
-      whiteListClientIdForDequeue, whiteListClientIdForEnqueue)
+      enableTrace, disableAggressiveRewrites)
   }
 }
 
@@ -159,7 +154,7 @@ class QueueBuilder {
    * To never sync, set it to `Duration.MaxValue`. Syncing the journal will reduce the maximum
    * throughput of the server in exchange for a lower chance of losing data.
    */
-  var syncJournal: ConfigValue[Duration] = Default(Duration.Top)
+  var syncJournal: ConfigValue[Duration] = Default(Duration.MaxValue)
 
   /**
    * Name of a queue to add expired items to. If set, expired items are added to the requested
@@ -192,27 +187,10 @@ class QueueBuilder {
   var enableTrace: ConfigValue[Boolean] = Default(false)
 
   /**
-   * When true, rewrites are slowed down especially if they don't result in reduction
-   * in the size of the journal
+   * When true, operations on the queue generate trace output. Used to diagnose
+   * client misbehavior/bugs
    */
   var disableAggressiveRewrites: ConfigValue[Boolean] = Default(false)
-
-  /**
-   * Determines the duration after which an open transaction will be timed out
-   * and aborted - resulting in redelivery of items that were unacknowledged
-   */
-  var openTransactionTimeout: ConfigValue[Option[Duration]] = Default(None)
-
-  /**
-   * Only clientId that is allowed to dequeue items from the specified queue or
-   * fanout
-   */
-  var whiteListClientIdForDequeue: ConfigValue[Option[String]] = Default(None)
-
-  /**
-   * Only clientId that is allowed to enqueue items to the specified queue
-   */
-  var whiteListClientIdForEnqueue: ConfigValue[Option[String]] = Default(None)
 
   def apply(): QueueConfig = apply(None)
 
@@ -233,10 +211,7 @@ class QueueBuilder {
                 fanoutOnly.resolve(parent.map { _.fanoutOnly }),
                 maxQueueAge.resolve(parent.map { _.maxQueueAge }),
                 enableTrace.resolve(parent.map { _.enableTrace }),
-                disableAggressiveRewrites.resolve(parent.map { _.disableAggressiveRewrites}),
-                openTransactionTimeout.resolve(parent.map { _.openTransactionTimeout}),
-                whiteListClientIdForDequeue.resolve(parent.map { _.whiteListClientIdForDequeue}),
-                whiteListClientIdForEnqueue.resolve(parent.map { _.whiteListClientIdForEnqueue})
+                disableAggressiveRewrites.resolve(parent.map { _.disableAggressiveRewrites})
                 )
   }
 }
