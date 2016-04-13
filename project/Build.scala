@@ -1,6 +1,7 @@
 import sbt._
 import Keys._
-import com.twitter.sbt._
+import com.twitter.sbt.{StandardProject,PackageDist}
+import com.twitter.scrooge.ScroogeSBT
 
 object Kestrel extends Build {
   val finagleVersion = "6.4.1"
@@ -10,7 +11,7 @@ object Kestrel extends Build {
     base = file("."),
     settings = Project.defaultSettings ++
       StandardProject.newSettings ++
-      CompileThriftScrooge.newSettings
+      ScroogeSBT.newSettings
   ).settings(
     name := "kestrel",
     organization := "net.lag",
@@ -45,7 +46,7 @@ object Kestrel extends Build {
 
     mainClass in Compile := Some("net.lag.kestrel.Kestrel"),
 
-    CompileThriftScrooge.scroogeVersion := "3.0.1",
+    // CompileThriftScrooge.scroogeVersion := "3.0.1",
     PackageDist.packageDistConfigFilesValidationRegex := Some(".*"),
     publishArtifact in Test := true
   )
