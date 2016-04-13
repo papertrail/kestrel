@@ -30,7 +30,7 @@ object Kestrel extends Build {
       "com.twitter" % "finagle-core" % finagleVersion,
       "com.twitter" % "finagle-ostrich4" % finagleVersion,
       "com.twitter" % "finagle-thrift" % finagleVersion, // override scrooge's version
-      "com.twitter" %% "scrooge-runtime" % "3.0.1",
+      "com.twitter" %% "scrooge-runtime" % "3.1.5",
       "com.twitter.common.zookeeper" % "server-set" % "1.0.16",
       // for tests only:
       "junit" % "junit" % "4.10" % "test",
