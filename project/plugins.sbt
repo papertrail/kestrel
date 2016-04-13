@@ -8,7 +8,12 @@ resolvers <<= (resolvers) { r =>
   (Option(System.getenv("SBT_PROXY_REPO")) map { url =>
     Seq("proxy-repo" at url)
   } getOrElse {
-    r
+    r ++ Seq(
+      "twitter.com" at "https://maven.twttr.com/",
+      "scala-tools" at "http://scala-tools.org/repo-releases/",
+      "maven" at "http://repo1.maven.org/maven2/",
+      "freemarker" at "http://freemarker.sourceforge.net/maven2/"
+    )
   }) ++ Seq("local" at ("file:" + System.getProperty("user.home") + "/.m2/repo/"))
 }
 
