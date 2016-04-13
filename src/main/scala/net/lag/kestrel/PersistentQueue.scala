@@ -58,7 +58,7 @@ class PersistentQueue(val name: String, persistencePath: PersistentStreamContain
   private var _currentAge: Time = null
 
   // time the queue was created
-  private var _createTime = Time.now
+  private val _createTime = Time.now
 
   def statNamed(statName: String) = "q/" + name + "/" + statName
 
@@ -246,8 +246,10 @@ class PersistentQueue(val name: String, persistencePath: PersistentStreamContain
    */
   def isReadyForExpiration: Boolean = {
     // Don't even bother if the maxQueueAge is None
-    if (config.maxQueueAge.isDefined && queue.isEmpty && Time.now > _createTime + config.maxQueueAge.get) {
-      true
+    if (config.maxQueueAge.isDefined && queue.isEmpty) {
+      val lastOperationTime = if (_currentAge == null) _createTime else _currentAge
+
+      Time.now > lastOperationTime + config.maxQueueAge.get
     } else {
       false
     }
