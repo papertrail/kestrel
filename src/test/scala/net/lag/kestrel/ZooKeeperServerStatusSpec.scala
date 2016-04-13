@@ -54,7 +54,6 @@ with TestLogging {
     val zkConfig = new ZooKeeperBuilder {
       host = "localhost"
       pathPrefix = "/kestrel"
-      useTwitterServerSet = false
     }
 
     mockTimer = new MockTimer
