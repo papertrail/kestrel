@@ -246,7 +246,7 @@ class PersistentQueue(val name: String, persistencePath: PersistentStreamContain
    */
   def isReadyForExpiration: Boolean = {
     // Don't even bother if the maxQueueAge is None
-    if (config.maxQueueAge.isDefined && queue.isEmpty) {
+    if (config.maxQueueAge.isDefined && queue.isEmpty && openTransactions.isEmpty) {
       val lastOperationTime = if (_currentAge == null) _createTime else _currentAge
 
       Time.now > lastOperationTime + config.maxQueueAge.get
