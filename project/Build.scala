@@ -19,6 +19,8 @@ object Kestrel extends Build {
     version := "2.4.8-SNAPSHOT",
     scalaVersion := "2.9.2",
 
+    resolvers += "Twitter Repository" at "http://maven.twttr.com",
+
     // time-based tests cannot be run in parallel
     logBuffered in Test := false,
     parallelExecution in Test := false,
