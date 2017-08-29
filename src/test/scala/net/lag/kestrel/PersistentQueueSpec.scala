@@ -1176,6 +1176,29 @@ class PersistentQueueSpec extends SpecificationWithJUnit
         }
       }
     }
+
+    "expire queue with open transactions" in {
+      withTempFolder {
+        Time.withCurrentTimeFrozen { time =>
+          val config = new QueueBuilder {
+            keepJournal = false
+            maxQueueAge = 90.seconds
+          }.apply()
+          val q = new PersistentQueue("wu_tang", folderName, config, timer, scheduler)
+          q.setup()
+
+          q.isReadyForExpiration mustEqual false
+
+          q.add("method man".getBytes, None) mustEqual true
+          time.advance(91.seconds)
+          val item = q.remove(true).get
+
+          q.isReadyForExpiration mustEqual false
+          q.confirmRemove(item.xid)
+          q.isReadyForExpiration mustEqual true
+        }
+      }
+    }
   }
 
   "PersistentQueue with item expiry" should {
