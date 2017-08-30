@@ -4,6 +4,8 @@ FROM openjdk:7
 
 ENV SCALA_VERSION 2.9.2
 ENV SBT_VERSION 0.12.4
+ENV KESTREL_BRANCH master
+ENV KESTREL_HOME /opt/kestrel
 
 RUN \
   curl -fsL http://www.scala-lang.org/files/archive/scala-$SCALA_VERSION.tgz | tar xfz - -C /root/ && \
@@ -19,8 +21,18 @@ RUN \
   apt-get install sbt && \
   sbt sbt-version
 
-
 RUN apt-get install git
 
+RUN git clone https://github.com/papertrail/kestrel.git && cd kestrel && git checkout $KESTREL_BRANCH && sbt clean update package-dist
 
-CMD ["bash"]
+RUN mkdir -p /opt && cp -R /kestrel/dist/kestrel/ /opt
+
+ADD config.scala $KESTREL_HOME
+
+USER root
+
+WORKDIR $KESTREL_HOME
+
+EXPOSE 2222 2223 2229 22133
+
+CMD ["/usr/bin/java -cp $KESTREL_HOME/kestrel_2.9.2-2.4.8-SNAPSHOT.jar:$KESTREL_HOME/libs/* -jar $KESTREL_HOME/kestrel_2.9.2-2.4.8-SNAPSHOT.jar -f $KESTREL_HOME/config.scala"]
