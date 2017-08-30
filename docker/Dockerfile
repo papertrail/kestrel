@@ -35,4 +35,4 @@ WORKDIR $KESTREL_HOME
 
 EXPOSE 2222 2223 2229 22133
 
-CMD ["/usr/bin/java -cp $KESTREL_HOME/kestrel_2.9.2-2.4.8-SNAPSHOT.jar:$KESTREL_HOME/libs/* -jar $KESTREL_HOME/kestrel_2.9.2-2.4.8-SNAPSHOT.jar -f $KESTREL_HOME/config.scala"]
+CMD ["/usr/bin/java", "-cp", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar:libs/*", "-jar", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar", "-f", "config.scala"]
