@@ -30,9 +30,7 @@ RUN mkdir -p /opt && cp -R /kestrel/dist/kestrel/ /opt
 ADD config.scala $KESTREL_HOME
 
 USER root
-
 WORKDIR $KESTREL_HOME
-
 EXPOSE 2222 2223 2229 22133
 
 CMD ["/usr/bin/java", "-cp", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar:libs/*", "-jar", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar", "-f", "config.scala"]
