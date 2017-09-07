@@ -7,6 +7,7 @@ ENV SBT_VERSION 0.12.4
 ENV KESTREL_BRANCH master
 ENV KESTREL_HOME /opt/kestrel
 
+# Install Scala
 RUN \
   curl -fsL http://www.scala-lang.org/files/archive/scala-$SCALA_VERSION.tgz | tar xfz - -C /root/ && \
   echo >> /root/.bashrc && \
@@ -27,10 +28,10 @@ RUN git clone https://github.com/papertrail/kestrel.git && cd kestrel && git che
 
 RUN mkdir -p /opt && cp -R /kestrel/dist/kestrel/ /opt
 
-ADD config.scala $KESTREL_HOME
+ADD config.scala /opt/config/kestrel.scala
 
 USER root
 WORKDIR $KESTREL_HOME
 EXPOSE 2222 2223 2229 22133
 
-CMD ["/usr/bin/java", "-cp", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar:libs/*", "-jar", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar", "-f", "config.scala"]
+CMD ["/usr/bin/java", "-cp", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar:libs/*", "-jar", "kestrel_2.9.2-2.4.8-SNAPSHOT.jar", "-f", "/opt/config/kestrel.scala"]
